@@ -19,3 +19,13 @@ def db_check():
             cur.execute("SELECT 1;")
             val = cur.fetchone()[0]
     return {"db": "ok", "select": val, "latency_ms": int((time.time()-t0)*1000)}
+
+@app.get("/ready")
+def ready():
+    try:
+        with psycopg.connect(DB_DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1;")
+        return {"status": "ready"}
+    except Exception:
+        return {"status": "not ready"}

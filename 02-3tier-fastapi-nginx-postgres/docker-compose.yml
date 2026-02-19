@@ -9,17 +9,24 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - front
 
   backend:
     build: ./app
     container_name: t3-backend
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; d=urllib.request.urlopen('http://localhost:8000/ready', timeout=2).read().decode(); sys.exit(0 if 'ready' in d else 1)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     environment:
-      - DB_DSN=postgresql://app:app@db:5432/appdb
+      - DB_DSN=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - front
       - back
@@ -27,10 +34,15 @@ services:
   db:
     image: postgres:15
     container_name: t3-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d appdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     environment:
-      - POSTGRES_DB=appdb
-      - POSTGRES_USER=app
-      - POSTGRES_PASSWORD=app
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
